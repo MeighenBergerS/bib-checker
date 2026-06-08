@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import bibtexparser
-from bibtexparser.middlewares.names import SeparateCoAuthors, MergeCoAuthors
-from bibtexparser.middlewares.latex_encoding import LatexDecodingMiddleware
 
 from .models import BibEntry
 
@@ -64,9 +62,7 @@ def parse_bib_file(path: str | Path) -> list[BibEntry]:
 
     entries: list[BibEntry] = []
     for entry in library.entries:
-        fields: dict[str, str] = {
-            k: _field_to_str(v) for k, v in entry.fields_dict.items()
-        }
+        fields: dict[str, str] = {k: _field_to_str(v) for k, v in entry.fields_dict.items()}
         entries.append(
             BibEntry(
                 key=entry.key,

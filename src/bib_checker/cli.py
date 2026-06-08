@@ -12,7 +12,6 @@ from .inspire import InspireClient
 from .parser import parse_bib_file
 from .searcher import suggest_replacements
 
-
 # ---------------------------------------------------------------------------
 # Sub-commands
 # ---------------------------------------------------------------------------
@@ -75,9 +74,7 @@ def cmd_suggest(args: argparse.Namespace) -> int:
     client = InspireClient(rate_limit_delay=args.delay)
 
     try:
-        suggestions = suggest_replacements(
-            results_path, client=client, verbose=args.verbose
-        )
+        suggestions = suggest_replacements(results_path, client=client, verbose=args.verbose)
     except (json.JSONDecodeError, KeyError) as exc:
         console.print(f"[bold red]Error reading results file:[/] {exc}")
         return 1
@@ -158,6 +155,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     """Entry point for the bib-checker command-line tool."""
+    import sys
+
     parser = build_parser()
     args = parser.parse_args()
     sys.exit(args.func(args))

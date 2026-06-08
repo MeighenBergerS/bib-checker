@@ -1,12 +1,12 @@
 """Tests for bib_checker.searcher (network calls mocked with responses)."""
 
 import json
-import pytest
-import responses as rsps_lib
 from pathlib import Path
 
+import responses as rsps_lib
+
 from bib_checker.inspire import InspireClient
-from bib_checker.searcher import suggest_replacements, _build_queries, _first_surname
+from bib_checker.searcher import _build_queries, _first_surname, suggest_replacements
 
 _BASE = "https://inspirehep.net/api/literature"
 
@@ -105,7 +105,12 @@ def test_suggest_skips_ok_entries(tmp_path):
         {
             "key": "Missing:9999xx",
             "status": "missing",
-            "local_entry": {"eprint": "9999.9999", "doi": "", "author": "Nobody, A", "year": "1900"},
+            "local_entry": {
+                "eprint": "9999.9999",
+                "doi": "",
+                "author": "Nobody, A",
+                "year": "1900",
+            },
             "mismatches": [],
         },
     ]

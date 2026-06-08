@@ -37,7 +37,9 @@ from bib_checker.searcher import suggest_replacements
 # ---------------------------------------------------------------------------
 
 # Default to the sample bib shipped with the repo; override via argv.
-BIB_FILE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent.parent / "bibliography.bib"
+BIB_FILE = (
+    Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent.parent / "bibliography.bib"
+)
 
 # Output paths written next to the script.
 RESULTS_FILE = Path(__file__).parent / "results.json"
@@ -56,8 +58,8 @@ client = InspireClient(rate_limit_delay=0.5)
 print("Checking entries against InspireHEP …")
 results = check_entries(entries, client=client, verbose=True)
 
-ok       = [r for r in results if r.status == "ok"]
-missing  = [r for r in results if r.status == "missing"]
+ok = [r for r in results if r.status == "ok"]
+missing = [r for r in results if r.status == "missing"]
 mismatch = [r for r in results if r.status == "mismatch"]
 
 print(f"\nResults: {len(ok)} ok  |  {len(missing)} missing  |  {len(mismatch)} mismatched")

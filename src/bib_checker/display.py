@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
 
 from .models import CheckResult, Suggestion
 
@@ -15,8 +13,8 @@ console = Console()
 
 # Status symbols and styles
 _STATUS_STYLE: dict[str, tuple[str, str]] = {
-    "ok":       ("✓", "green"),
-    "missing":  ("✗", "bold red"),
+    "ok": ("✓", "green"),
+    "missing": ("✗", "bold red"),
     "mismatch": ("~", "bold yellow"),
 }
 
@@ -31,8 +29,8 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
     bib_name : str
         Display name of the source .bib file, shown in the panel title.
     """
-    ok       = [r for r in results if r.status == "ok"]
-    missing  = [r for r in results if r.status == "missing"]
+    ok = [r for r in results if r.status == "ok"]
+    missing = [r for r in results if r.status == "missing"]
     mismatch = [r for r in results if r.status == "mismatch"]
 
     # Summary panel
@@ -60,9 +58,7 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
 
         if r.mismatches:
             details = "\n".join(
-                f"[bold]{m.field_name}[/]\n"
-                f"  local  : {m.local_value}\n"
-                f"  inspire: {m.inspire_value}"
+                f"[bold]{m.field_name}[/]\n  local  : {m.local_value}\n  inspire: {m.inspire_value}"
                 for m in r.mismatches
             )
         else:

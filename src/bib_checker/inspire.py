@@ -37,7 +37,9 @@ class InspireClient:
         self._timeout = timeout
         self._delay = rate_limit_delay
         self._session = requests.Session()
-        self._session.headers["User-Agent"] = "bib-checker/0.1 (https://github.com/MeighenBergerS/bib-checker)"
+        self._session.headers["User-Agent"] = (
+            "bib-checker/0.1 (https://github.com/MeighenBergerS/bib-checker)"
+        )
 
     # ------------------------------------------------------------------
     # Public interface

@@ -1,6 +1,5 @@
 """Tests for bib_checker.checker (all network calls mocked with responses)."""
 
-import pytest
 import responses as rsps_lib
 
 from bib_checker.checker import check_entries
@@ -69,9 +68,7 @@ def test_entry_ok_when_fields_match():
         year=2008,
         title="Dark matter and the first stars",
     )
-    rsps_lib.add(
-        rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200
-    )
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
 
     client = InspireClient(rate_limit_delay=0)
     results = check_entries([entry], client=client)
@@ -84,9 +81,7 @@ def test_entry_ok_when_fields_match():
 @rsps_lib.activate
 def test_entry_missing_when_no_hits():
     entry = _make_entry("FakeKey:9999xx", doi="", eprint="", year="1900")
-    rsps_lib.add(
-        rsps_lib.GET, _BASE, json={"hits": {"hits": []}}, status=200
-    )
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": []}}, status=200)
 
     client = InspireClient(rate_limit_delay=0)
     results = check_entries([entry], client=client)
@@ -110,9 +105,7 @@ def test_entry_mismatch_on_wrong_year():
         year=2008,  # correct year from inspire
         title="Dark matter and the first stars",
     )
-    rsps_lib.add(
-        rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200
-    )
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
 
     client = InspireClient(rate_limit_delay=0)
     results = check_entries([entry], client=client)
@@ -138,9 +131,7 @@ def test_entry_mismatch_on_wrong_doi():
         year=2008,
         title="Dark matter and the first stars",
     )
-    rsps_lib.add(
-        rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200
-    )
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
 
     client = InspireClient(rate_limit_delay=0)
     results = check_entries([entry], client=client)
