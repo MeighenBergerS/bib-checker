@@ -38,7 +38,7 @@ suggestions.json
 *.html
 
 # bib-checker cache
-.*.cache.json
+.*cache.json
 
 # Bibliography files (ignore all .bib except the committed sample)
 *.bib

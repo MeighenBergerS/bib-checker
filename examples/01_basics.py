@@ -174,6 +174,15 @@ if still_broken:
 else:
     console.print("[bold green]✓ All previously-fixed entries now pass verification.[/]\n")
 
+# Reformat the fixed bib so remaining flagged entries are at the end,
+# separated by the same "needs validation" block as the reformatted bib.
+still_flagged_keys = {r.key for r in fixed_results if r.status in ("missing", "mismatch")}
+n_ok_fixed, n_bad_fixed = write_reformatted_bib(FIXED_FILE, still_flagged_keys, FIXED_FILE)
+console.print(
+    f"Reformatted fixed bib in-place: "
+    f"[green]{n_ok_fixed} ok[/] + [yellow]{n_bad_fixed} still flagged[/]\n"
+)
+
 # Write a verification HTML report for the fixed bib.
 FIXED_HTML = BIB_FILE.with_name(BIB_FILE.stem + "_fixed_report.html")
 write_html_report(fixed_results, [], FIXED_FILE.name, FIXED_HTML)
