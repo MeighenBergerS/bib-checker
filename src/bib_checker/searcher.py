@@ -1,11 +1,8 @@
-"""Step 2: for entries flagged as missing or mismatched, search InspireHEP
-for likely replacements.
+"""Step 2: search InspireHEP for replacements for flagged entries.
 
-Search strategy (applied in priority order, first hit wins):
-  1. arXiv eprint ID  (most precise)
-  2. DOI
-  3. First author surname + year
-If none of those fields are available, the entry is skipped.
+Loads the results.json produced by Step 1 and, for each missing or
+mismatched entry, queries InspireHEP using eprint, DOI, or
+author+year as fallback strategies.
 """
 
 from __future__ import annotations
@@ -52,6 +49,20 @@ def _build_queries(entry: dict[str, Any]) -> list[str]:
 
 
 def _record_to_suggestion(for_key: str, record: dict[str, Any]) -> Suggestion:
+    """Build a Suggestion from a raw InspireHEP API hit dict.
+
+    Parameters
+    ----------
+    for_key : str
+        Citation key this suggestion is targeting.
+    record : dict[str, Any]
+        Raw API hit dict.
+
+    Returns
+    -------
+    suggestion : Suggestion
+        Populated Suggestion dataclass instance.
+    """
     return Suggestion(
         for_key=for_key,
         texkey=InspireClient.get_texkey(record),
@@ -69,10 +80,23 @@ def suggest_replacements(
     client: InspireClient | None = None,
     verbose: bool = False,
 ) -> list[Suggestion]:
-    """Load *results_path* (Step 1 output) and search for replacements.
+    """Load Step 1 output and search for replacement candidates.
 
-    Only entries with status "missing" or "mismatch" are processed.
-    Returns a flat list of Suggestion objects (up to 5 per entry).
+    Only entries with status ``"missing"`` or ``"mismatch"`` are processed.
+
+    Parameters
+    ----------
+    results_path : str or Path
+        Path to the results.json file written by Step 1.
+    client : InspireClient, optional
+        API client to use. A default client is created when ``None``.
+    verbose : bool, optional
+        Print progress to stdout for each entry. Default is ``False``.
+
+    Returns
+    -------
+    suggestions : list[Suggestion]
+        Flat list of candidates, up to 5 per actionable entry.
     """
     if client is None:
         client = InspireClient()

@@ -1,10 +1,7 @@
-"""Step 1: check every BibEntry against InspireHEP.
+"""Step 1: check bib entries against InspireHEP.
 
-For each entry:
-  - Query by texkey.
-  - If not found → status "missing".
-  - If found → compare selected fields; flag differences as "mismatch".
-  - If all fields agree → status "ok".
+Entries not found by texkey are flagged as ``"missing"``.
+Entries where key fields differ are flagged as ``"mismatch"``.
 """
 
 from __future__ import annotations
@@ -37,6 +34,22 @@ def _compare_fields(
     record: dict[str, Any],
     client: InspireClient,
 ) -> list[FieldMismatch]:
+    """Compare selected fields of *entry* against *record*.
+
+    Parameters
+    ----------
+    entry : BibEntry
+        Local bib entry to compare.
+    record : dict[str, Any]
+        Raw InspireHEP API hit dict.
+    client : InspireClient
+        Client instance (used only for its static extractor methods).
+
+    Returns
+    -------
+    mismatches : list[FieldMismatch]
+        Fields whose normalised values differ between entry and record.
+    """
     mismatches: list[FieldMismatch] = []
     for local_field, extractor in _COMPARED_FIELDS:
         local_val = _normalise(entry.fields.get(local_field, ""))
@@ -57,11 +70,22 @@ def check_entries(
     client: InspireClient | None = None,
     verbose: bool = False,
 ) -> list[CheckResult]:
-    """Check *entries* against InspireHEP.
+    """Check *entries* against InspireHEP and return one result per entry.
 
-    Returns a list of CheckResult, one per entry.
-    Only "missing" and "mismatch" entries are meaningful for downstream steps,
-    but all results are returned so callers can produce a full report.
+    Parameters
+    ----------
+    entries : list[BibEntry]
+        Entries to check, typically parsed from a .bib file.
+    client : InspireClient, optional
+        API client to use. A default client is created when ``None``.
+    verbose : bool, optional
+        Print progress to stdout for each entry. Default is ``False``.
+
+    Returns
+    -------
+    results : list[CheckResult]
+        One result per input entry. Status is ``"ok"``, ``"missing"``,
+        or ``"mismatch"``.
     """
     if client is None:
         client = InspireClient()

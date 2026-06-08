@@ -41,9 +41,20 @@ def _field_to_str(value: object) -> str:
 def parse_bib_file(path: str | Path) -> list[BibEntry]:
     """Parse a .bib file and return a list of BibEntry objects.
 
-    Raises:
-        FileNotFoundError: if *path* does not exist.
-        ValueError: if the file cannot be parsed.
+    Parameters
+    ----------
+    path : str or Path
+        Path to the .bib file to parse.
+
+    Returns
+    -------
+    entries : list[BibEntry]
+        Parsed entries in document order.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if *path* does not exist.
     """
     path = Path(path)
     if not path.exists():

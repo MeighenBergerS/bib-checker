@@ -1,9 +1,4 @@
-"""CLI entry point.
-
-Usage:
-    bib-checker check path/to/file.bib [--output results.json] [--verbose]
-    bib-checker suggest results.json   [--output suggestions.json] [--verbose]
-"""
+"""CLI entry points for bib-checker (check and suggest subcommands)."""
 
 from __future__ import annotations
 
@@ -24,6 +19,18 @@ from .searcher import suggest_replacements
 
 
 def cmd_check(args: argparse.Namespace) -> int:
+    """Run the check subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+
+    Returns
+    -------
+    exit_code : int
+        0 on success, 1 on error.
+    """
     bib_path = Path(args.bib_file)
 
     try:
@@ -53,6 +60,18 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_suggest(args: argparse.Namespace) -> int:
+    """Run the suggest subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+
+    Returns
+    -------
+    exit_code : int
+        0 on success, 1 on error.
+    """
     results_path = Path(args.results_file)
     if not results_path.exists():
         print(f"Error: {results_path} not found", file=sys.stderr)
@@ -83,6 +102,13 @@ def cmd_suggest(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build and return the top-level argument parser.
+
+    Returns
+    -------
+    parser : argparse.ArgumentParser
+        Configured parser with check and suggest subcommands.
+    """
     parser = argparse.ArgumentParser(
         prog="bib-checker",
         description="Validate .bib citations against InspireHEP.",
@@ -134,6 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    """Entry point for the bib-checker command-line tool."""
     parser = build_parser()
     args = parser.parse_args()
     sys.exit(args.func(args))
