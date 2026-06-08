@@ -44,9 +44,10 @@ h3 { font-size: 1rem; font-weight: 600; color: #7dd3fc; margin: 1.5rem 0 .4rem; 
     font-size: .9rem;
     letter-spacing: .02em;
 }
-.pill-ok      { background: #14532d; color: #86efac; }
-.pill-missing { background: #450a0a; color: #fca5a5; }
-.pill-mismatch{ background: #451a03; color: #fcd34d; }
+.pill-ok        { background: #14532d; color: #86efac; }
+.pill-missing   { background: #450a0a; color: #fca5a5; }
+.pill-mismatch  { background: #451a03; color: #fcd34d; }
+.pill-nonstd    { background: #2e1065; color: #d8b4fe; }
 
 /* Tables */
 table {
@@ -84,6 +85,7 @@ td { padding: .55rem .85rem; vertical-align: top; }
 .badge-ok       { background: #14532d; color: #86efac; }
 .badge-missing  { background: #450a0a; color: #fca5a5; }
 .badge-mismatch { background: #451a03; color: #fcd34d; }
+.badge-nonstd   { background: #2e1065; color: #d8b4fe; }
 
 /* Mismatch diff block */
 .mismatch-field { margin-bottom: .5rem; }
@@ -183,6 +185,7 @@ def _build_check_section(results: list[CheckResult], bib_name: str) -> str:
     ok = [r for r in results if r.status == "ok"]
     missing = [r for r in results if r.status == "missing"]
     mismatch = [r for r in results if r.status == "mismatch"]
+    nonstandard = [r for r in results if r.nonstandard_key]
     flagged = missing + mismatch
 
     pills = (
@@ -190,6 +193,8 @@ def _build_check_section(results: list[CheckResult], bib_name: str) -> str:
         f'<span class="pill pill-missing">✗ {len(missing)} missing</span>'
         f'<span class="pill pill-mismatch">~ {len(mismatch)} mismatched</span>'
     )
+    if nonstandard:
+        pills += f'<span class="pill pill-nonstd">⚠ {len(nonstandard)} non-standard key(s)</span>'
 
     if not flagged:
         body = '<div class="all-ok">✓ All entries look good.</div>'
@@ -199,6 +204,8 @@ def _build_check_section(results: list[CheckResult], bib_name: str) -> str:
             badge_cls = "badge-missing" if r.status == "missing" else "badge-mismatch"
             badge_sym = "✗" if r.status == "missing" else "~"
             badge = f'<span class="badge {badge_cls}">{badge_sym} {r.status}</span>'
+            if r.nonstandard_key:
+                badge += ' <span class="badge badge-nonstd">⚠ non-std key</span>'
 
             if r.mismatches:
                 parts = []

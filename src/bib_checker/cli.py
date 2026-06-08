@@ -6,8 +6,11 @@ import argparse
 import json
 from pathlib import Path
 
+from .cache import CheckCache
 from .checker import check_entries
+from .config import load_ignore_keys
 from .display import console, print_check_results, print_suggestions
+from .fixer import DEFAULT_FIX_FIELDS, apply_fixes
 from .inspire import InspireClient
 from .parser import parse_bib_file, write_reformatted_bib
 from .report import write_html_report
@@ -42,7 +45,24 @@ def cmd_check(args: argparse.Namespace) -> int:
     console.print(f"Parsed [bold]{len(entries)}[/] entries from [cyan]{bib_path.name}[/]")
 
     client = InspireClient(rate_limit_delay=args.delay)
-    results = check_entries(entries, client=client, verbose=args.verbose)
+
+    # Load ignore list from pyproject.toml / .bibcheckerignore.
+    ignore_keys = load_ignore_keys(bib_path)
+    if ignore_keys and args.verbose:
+        console.print(f"  Ignoring [bold]{len(ignore_keys)}[/] key(s) from config.")
+
+    # Set up cache (unless --no-cache was passed).
+    cache: CheckCache | None = None
+    if not args.no_cache:
+        cache = CheckCache(CheckCache.default_path(bib_path))
+
+    results = check_entries(
+        entries,
+        client=client,
+        verbose=args.verbose,
+        cache=cache,
+        ignore_keys=ignore_keys,
+    )
 
     print_check_results(results, bib_path.name)
 
@@ -142,6 +162,71 @@ def cmd_suggest(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def cmd_fix(args: argparse.Namespace) -> int:
+    """Run the fix subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+
+    Returns
+    -------
+    exit_code : int
+        0 on success, 1 on error.
+    """
+    bib_path = Path(args.bib_file)
+    results_path = Path(args.results_file)
+
+    for p in (bib_path, results_path):
+        if not p.exists():
+            console.print(f"[bold red]Error:[/] {p} not found")
+            return 1
+
+    import json as _json
+
+    try:
+        results = _json.loads(results_path.read_text())
+    except _json.JSONDecodeError as exc:
+        console.print(f"[bold red]Error reading results file:[/] {exc}")
+        return 1
+
+    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
+    output_path = Path(args.output) if args.output else None
+
+    try:
+        applied = apply_fixes(
+            bib_path,
+            results,
+            output_path=output_path,
+            fields=fields,
+            dry_run=args.dry_run,
+        )
+    except FileNotFoundError as exc:
+        console.print(f"[bold red]Error:[/] {exc}")
+        return 1
+
+    if not applied:
+        console.print("[green]Nothing to fix — no mismatch entries with known records.[/]")
+        return 0
+
+    dest = output_path or bib_path
+    verb = "Would update" if args.dry_run else "Updated"
+    console.print(f"{verb} [bold]{len(applied)}[/] field(s) in [cyan]{dest}[/]:\n")
+
+    for change in applied:
+        console.print(
+            f"  [cyan]{change['key']}[/]  [bold]{change['field']}[/]\n"
+            f"    [red]- {change['old'] or '(empty)'}[/]\n"
+            f"    [green]+ {change['new']}[/]\n"
+        )
+
+    if args.dry_run:
+        console.print("[yellow]Dry run — no files were modified.[/]")
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the top-level argument parser.
 
@@ -202,6 +287,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="Output path for the HTML report (default: <name>_report.html).",
     )
+    p_check.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass the on-disk result cache and re-fetch everything.",
+    )
     p_check.set_defaults(func=cmd_check)
 
     # -- suggest -------------------------------------------------------------
@@ -229,6 +319,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output path for the HTML report (default: report.html next to results.json).",
     )
     p_suggest.set_defaults(func=cmd_suggest)
+
+    # -- fix ----------------------------------------------------------------
+    p_fix = sub.add_parser(
+        "fix",
+        help="Step 3: apply InspireHEP canonical values to mismatch entries.",
+    )
+    p_fix.add_argument("bib_file", metavar="FILE.bib")
+    p_fix.add_argument(
+        "results_file",
+        metavar="results.json",
+        help="results.json produced by the check subcommand.",
+    )
+    p_fix.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        metavar="FILE",
+        help="Output .bib path (default: in-place).",
+    )
+    p_fix.add_argument(
+        "--fields",
+        default=",".join(DEFAULT_FIX_FIELDS),
+        metavar="FIELDS",
+        help=f"Comma-separated fields to fix (default: {','.join(DEFAULT_FIX_FIELDS)}).",
+    )
+    p_fix.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would change without writing anything.",
+    )
+    p_fix.set_defaults(func=cmd_fix)
 
     return parser
 

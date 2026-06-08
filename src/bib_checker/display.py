@@ -32,6 +32,7 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
     ok = [r for r in results if r.status == "ok"]
     missing = [r for r in results if r.status == "missing"]
     mismatch = [r for r in results if r.status == "mismatch"]
+    nonstandard = [r for r in results if r.nonstandard_key]
 
     # Summary panel
     summary = (
@@ -39,6 +40,8 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
         f"[bold red]✗ {len(missing)} missing[/]   "
         f"[bold yellow]~ {len(mismatch)} mismatched[/]"
     )
+    if nonstandard:
+        summary += f"   [bold magenta]⚠ {len(nonstandard)} non-standard key(s)[/]"
     console.print(Panel(summary, title=f"[bold]Results: {bib_name}[/]", box=box.ROUNDED))
 
     # Only render the table when there is something flagged.
@@ -55,6 +58,8 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
     for r in flagged:
         symbol, style = _STATUS_STYLE[r.status]
         status_str = f"[{style}]{symbol} {r.status}[/]"
+        if r.nonstandard_key:
+            status_str += "\n[bold magenta]⚠ non-std key[/]"
 
         if r.mismatches:
             details = "\n".join(

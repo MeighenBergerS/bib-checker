@@ -27,7 +27,9 @@ from pathlib import Path
 # Allow running the script directly without installing the package.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from bib_checker.cache import CheckCache
 from bib_checker.checker import check_entries
+from bib_checker.config import load_ignore_keys
 from bib_checker.display import console, print_check_results, print_suggestions
 from bib_checker.inspire import InspireClient
 from bib_checker.parser import parse_bib_file, write_reformatted_bib
@@ -60,7 +62,15 @@ console.print(f"  Found [bold]{len(entries)}[/] entries.\n")
 client = InspireClient(rate_limit_delay=0.5)
 
 console.print("Checking entries against InspireHEP …")
-results = check_entries(entries, client=client, verbose=True)
+ignore_keys = load_ignore_keys(BIB_FILE)
+cache = CheckCache(CheckCache.default_path(BIB_FILE))
+results = check_entries(
+    entries,
+    client=client,
+    verbose=True,
+    cache=cache,
+    ignore_keys=ignore_keys,
+)
 
 print_check_results(results, BIB_FILE.name)
 

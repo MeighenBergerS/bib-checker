@@ -6,9 +6,11 @@ Entries where key fields differ are flagged as ``"mismatch"``.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from typing import Any
 
+from .cache import CheckCache
 from .inspire import InspireClient
 from .models import BibEntry, CheckResult, FieldMismatch
 
@@ -20,6 +22,12 @@ _COMPARED_FIELDS: list[tuple[str, str]] = [
     ("year", "get_year"),
     ("title", "get_title"),
 ]
+
+# InspireHEP canonical texkey pattern: Author:YYYYxx or COLLAB:YYYYabc.
+# The suffix is 2 or more lowercase letters.
+# Examples that match: Spolyar:2007qv, ATLAS:2021abc, CMS:2023zz
+# Examples that don't: chan2024first, Balaji_2023
+_TEXKEY_RE = re.compile(r"^[A-Za-z][A-Za-z]*:\d{4}[a-z]{2,}$")
 
 
 def _normalise(value: str) -> str:
@@ -70,11 +78,14 @@ def check_entries(
     client: InspireClient | None = None,
     verbose: bool = False,
     batch_size: int = 50,
+    cache: CheckCache | None = None,
+    ignore_keys: set[str] | None = None,
 ) -> list[CheckResult]:
     """Check *entries* against InspireHEP and return one result per entry.
 
     Entries are looked up in batches (OR queries) to minimise the number of
-    API requests.
+    API requests.  Already-cached results are reused without hitting the API.
+    Keys in *ignore_keys* are silently skipped.
 
     Parameters
     ----------
@@ -86,51 +97,94 @@ def check_entries(
         Print progress to stdout for each batch. Default is ``False``.
     batch_size : int, optional
         Number of texkeys to include per API request. Default is 50.
+    cache : CheckCache, optional
+        On-disk cache.  When provided, cached results are used and new
+        results are written back to the cache after checking.
+    ignore_keys : set[str], optional
+        Citation keys to skip entirely (no API call, no result).
 
     Returns
     -------
     results : list[CheckResult]
-        One result per input entry. Status is ``"ok"``, ``"missing"``,
-        or ``"mismatch"``.
+        One result per non-ignored input entry. Status is ``"ok"``,
+        ``"missing"``, or ``"mismatch"``.  The ``nonstandard_key`` flag
+        is set when the citation key doesn't follow the InspireHEP
+        ``Author:YYYYxx`` convention.
     """
     if client is None:
         client = InspireClient()
+    if ignore_keys is None:
+        ignore_keys = set()
 
-    texkeys = [e.key for e in entries]
-    n_batches = (len(texkeys) + batch_size - 1) // batch_size
+    # Split entries into cache-hits and those that need a network call.
+    to_fetch: list[BibEntry] = []
+    cached_results: dict[str, CheckResult] = {}
 
-    if verbose:
-        print(f"Fetching {len(texkeys)} entries in {n_batches} batch(es) …")
+    for entry in entries:
+        if entry.key in ignore_keys:
+            continue
+        if cache is not None:
+            hit = cache.get(entry.key, entry.fields)
+            if hit is not None:
+                cached_results[entry.key] = hit
+                continue
+        to_fetch.append(entry)
 
-    records = client.lookup_by_texkeys(texkeys, batch_size=batch_size)
+    n_ignored = len(entries) - len(to_fetch) - len(cached_results)
+    n_cached = len(cached_results)
 
-    if verbose:
-        print(f"  {len(records)} found, {len(texkeys) - len(records)} not found.")
+    if verbose and (n_ignored or n_cached):
+        print(f"  {n_cached} from cache, {n_ignored} ignored, {len(to_fetch)} to fetch.")
 
+    # Batch-fetch the remaining entries.
+    records: dict[str, dict[str, Any]] = {}
+    if to_fetch:
+        texkeys = [e.key for e in to_fetch]
+        n_batches = (len(texkeys) + batch_size - 1) // batch_size
+        if verbose:
+            print(f"Fetching {len(texkeys)} entries in {n_batches} batch(es) …")
+        records = client.lookup_by_texkeys(texkeys, batch_size=batch_size)
+        if verbose:
+            print(f"  {len(records)} found, {len(texkeys) - len(records)} not found.")
+
+    # Build results in original entry order (skipping ignored keys).
     results: list[CheckResult] = []
     for entry in entries:
+        if entry.key in ignore_keys:
+            continue
+
+        # Use cached result if available.
+        if entry.key in cached_results:
+            results.append(cached_results[entry.key])
+            continue
+
+        nonstandard = not bool(_TEXKEY_RE.match(entry.key))
         record = records.get(entry.key)
 
         if record is None:
-            results.append(
-                CheckResult(
-                    key=entry.key,
-                    status="missing",
-                    local_entry={"key": entry.key, "type": entry.entry_type, **entry.fields},
-                )
+            result = CheckResult(
+                key=entry.key,
+                status="missing",
+                nonstandard_key=nonstandard,
+                local_entry={"key": entry.key, "type": entry.entry_type, **entry.fields},
             )
-            continue
-
-        mismatches = _compare_fields(entry, record, client)
-
-        results.append(
-            CheckResult(
+        else:
+            mismatches = _compare_fields(entry, record, client)
+            result = CheckResult(
                 key=entry.key,
                 status="mismatch" if mismatches else "ok",
+                nonstandard_key=nonstandard,
                 mismatches=mismatches,
                 local_entry={"key": entry.key, "type": entry.entry_type, **entry.fields},
                 inspire_record=record,
             )
-        )
+
+        if cache is not None:
+            cache.put(entry.key, entry.fields, result)
+
+        results.append(result)
+
+    if cache is not None:
+        cache.save()
 
     return results

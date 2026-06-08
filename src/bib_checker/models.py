@@ -81,6 +81,9 @@ class CheckResult:
         Citation key of the checked entry.
     status : str
         Outcome: ``"ok"``, ``"missing"``, or ``"mismatch"``.
+    nonstandard_key : bool
+        ``True`` when the citation key does not follow the InspireHEP
+        ``Author:YYYYxx`` convention.
     mismatches : list[FieldMismatch]
         Fields that differ from the InspireHEP record. Empty when
         status is not ``"mismatch"``.
@@ -92,6 +95,7 @@ class CheckResult:
 
     key: str
     status: str  # "ok" | "missing" | "mismatch"
+    nonstandard_key: bool = False
     mismatches: list[FieldMismatch] = field(default_factory=list)
     local_entry: dict[str, Any] | None = None
     inspire_record: dict[str, Any] | None = None
@@ -101,6 +105,7 @@ class CheckResult:
         return {
             "key": self.key,
             "status": self.status,
+            "nonstandard_key": self.nonstandard_key,
             "mismatches": [
                 {
                     "field": m.field_name,
