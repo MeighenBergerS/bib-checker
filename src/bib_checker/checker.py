@@ -69,8 +69,12 @@ def check_entries(
     entries: list[BibEntry],
     client: InspireClient | None = None,
     verbose: bool = False,
+    batch_size: int = 50,
 ) -> list[CheckResult]:
     """Check *entries* against InspireHEP and return one result per entry.
+
+    Entries are looked up in batches (OR queries) to minimise the number of
+    API requests.
 
     Parameters
     ----------
@@ -79,7 +83,9 @@ def check_entries(
     client : InspireClient, optional
         API client to use. A default client is created when ``None``.
     verbose : bool, optional
-        Print progress to stdout for each entry. Default is ``False``.
+        Print progress to stdout for each batch. Default is ``False``.
+    batch_size : int, optional
+        Number of texkeys to include per API request. Default is 50.
 
     Returns
     -------
@@ -90,13 +96,20 @@ def check_entries(
     if client is None:
         client = InspireClient()
 
+    texkeys = [e.key for e in entries]
+    n_batches = (len(texkeys) + batch_size - 1) // batch_size
+
+    if verbose:
+        print(f"Fetching {len(texkeys)} entries in {n_batches} batch(es) …")
+
+    records = client.lookup_by_texkeys(texkeys, batch_size=batch_size)
+
+    if verbose:
+        print(f"  {len(records)} found, {len(texkeys) - len(records)} not found.")
+
     results: list[CheckResult] = []
-
-    for i, entry in enumerate(entries, start=1):
-        if verbose:
-            print(f"[{i}/{len(entries)}] Checking {entry.key} …")
-
-        record = client.lookup_by_texkey(entry.key)
+    for entry in entries:
+        record = records.get(entry.key)
 
         if record is None:
             results.append(

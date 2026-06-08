@@ -149,9 +149,8 @@ def test_multiple_entries_mixed_results():
     ]
 
     good_hit = _inspire_hit("Good:2000ab", doi="10.1/good", eprint="0001.0001", year=2000, title="")
-    # first call returns a hit, second returns empty
+    # Both entries are in a single batch request; only Good:2000ab is found.
     rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [good_hit]}}, status=200)
-    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": []}}, status=200)
 
     client = InspireClient(rate_limit_delay=0)
     results = check_entries(entries, client=client)
@@ -159,3 +158,23 @@ def test_multiple_entries_mixed_results():
     statuses = {r.key: r.status for r in results}
     assert statuses["Good:2000ab"] == "ok"
     assert statuses["Missing:9999xx"] == "missing"
+
+
+@rsps_lib.activate
+def test_lookup_by_texkeys_batches_requests():
+    """Verify lookup_by_texkeys splits large lists into chunks."""
+    keys_batch1 = [f"Key:000{i}" for i in range(3)]
+    keys_batch2 = [f"Key:010{i}" for i in range(2)]
+    all_keys = keys_batch1 + keys_batch2
+
+    hits_batch1 = [_inspire_hit(k, doi="", eprint="", year=2020, title="") for k in keys_batch1]
+    hits_batch2 = [_inspire_hit(k, doi="", eprint="", year=2021, title="") for k in keys_batch2]
+
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": hits_batch1}}, status=200)
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": hits_batch2}}, status=200)
+
+    client = InspireClient(rate_limit_delay=0)
+    results = client.lookup_by_texkeys(all_keys, batch_size=3)
+
+    assert set(results.keys()) == set(all_keys)
+    assert len(rsps_lib.calls) == 2  # two batches fired

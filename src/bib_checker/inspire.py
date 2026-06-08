@@ -58,14 +58,44 @@ class InspireClient:
         record : dict[str, Any] or None
             Raw API hit dict, or ``None`` if no record was found.
         """
-        params = {
-            "q": f"texkey:{texkey}",
-            "fields": "texkeys,titles,authors,dois,arxiv_eprints,publication_info,imprint",
-            "size": 1,
-        }
-        data = self._get(f"{_BASE}/literature", params=params)
-        hits = data.get("hits", {}).get("hits", [])
-        return hits[0] if hits else None
+        results = self.lookup_by_texkeys([texkey])
+        return results.get(texkey)
+
+    def lookup_by_texkeys(
+        self,
+        texkeys: list[str],
+        batch_size: int = 50,
+    ) -> dict[str, dict[str, Any]]:
+        """Fetch multiple records in batches using OR queries.
+
+        Parameters
+        ----------
+        texkeys : list[str]
+            Citation keys to look up.
+        batch_size : int, optional
+            Maximum number of keys per API request. Default is 50.
+
+        Returns
+        -------
+        records : dict[str, dict[str, Any]]
+            Mapping of texkey to the matching raw API hit dict.
+            Keys not found on InspireHEP are absent from the result.
+        """
+        records: dict[str, dict[str, Any]] = {}
+        for i in range(0, len(texkeys), batch_size):
+            chunk = texkeys[i : i + batch_size]
+            query = " or ".join(f"texkey:{k}" for k in chunk)
+            params = {
+                "q": query,
+                "fields": "texkeys,titles,authors,dois,arxiv_eprints,publication_info,imprint",
+                "size": batch_size,
+            }
+            data = self._get(f"{_BASE}/literature", params=params)
+            for hit in data.get("hits", {}).get("hits", []):
+                key = self.get_texkey(hit)
+                if key:
+                    records[key] = hit
+        return records
 
     def search(
         self,
