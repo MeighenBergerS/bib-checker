@@ -34,6 +34,19 @@ from pathlib import Path
 # Allow running the script directly without installing the package.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import os
+from pathlib import Path
+
+from bib_checker.ads import AdsClient
+
+# Load .env from the repo root if present (simple key=value, no dependencies).
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 from bib_checker.cache import CheckCache
 from bib_checker.checker import check_entries
 from bib_checker.config import load_ignore_keys
@@ -70,12 +83,18 @@ console.print(f"  Found [bold]{len(entries)}[/] entries.\n")
 
 client = InspireClient(rate_limit_delay=0.5)
 
+ads_token = os.environ.get("ADS_TOKEN", "")
+ads_client = AdsClient(ads_token, rate_limit_delay=0.5) if ads_token else None
+if not ads_client:
+    console.print("[dim]ADS_TOKEN not set — ADS direct fallback disabled.[/]\n")
+
 console.print("Checking entries against InspireHEP …")
 ignore_keys = load_ignore_keys(BIB_FILE)
 cache = CheckCache(CheckCache.default_path(BIB_FILE))
 results = check_entries(
     entries,
     client=client,
+    ads_client=ads_client,
     verbose=True,
     cache=cache,
     ignore_keys=ignore_keys,
@@ -84,12 +103,13 @@ results = check_entries(
 print_check_results(results, BIB_FILE.name)
 
 # Write flagged entries to JSON.
-flagged = [r.to_dict() for r in results if r.status in ("missing", "mismatch")]
+_FLAGGED_STATUSES = ("missing", "mismatch", "found_via_ads")
+flagged = [r.to_dict() for r in results if r.status in _FLAGGED_STATUSES]
 RESULTS_FILE.write_text(json.dumps(flagged, indent=2, ensure_ascii=False))
 console.print(f"Wrote [bold]{len(flagged)}[/] flagged entries → [cyan]{RESULTS_FILE}[/]\n")
 
 # Write reformatted bib with flagged entries moved to the end.
-flagged_keys = {r.key for r in results if r.status in ("missing", "mismatch")}
+flagged_keys = {r.key for r in results if r.status in _FLAGGED_STATUSES}
 n_ok, n_bad = write_reformatted_bib(BIB_FILE, flagged_keys, REFORMATTED_FILE)
 console.print(
     f"Wrote reformatted bib → [cyan]{REFORMATTED_FILE}[/] "
@@ -161,6 +181,7 @@ fixed_cache = CheckCache(CheckCache.default_path(FIXED_FILE))
 fixed_results = check_entries(
     fixed_entries,
     client=client,
+    ads_client=ads_client,
     verbose=True,
     cache=fixed_cache,
     ignore_keys=ignore_keys,
@@ -168,7 +189,7 @@ fixed_results = check_entries(
 
 print_check_results(fixed_results, FIXED_FILE.name)
 
-still_broken = [r for r in fixed_results if r.status in ("missing", "mismatch")]
+still_broken = [r for r in fixed_results if r.status in _FLAGGED_STATUSES]
 if still_broken:
     console.print(f"[bold yellow]⚠ {len(still_broken)} entry(s) still flagged after fixing.[/]\n")
 else:
@@ -176,7 +197,7 @@ else:
 
 # Reformat the fixed bib so remaining flagged entries are at the end,
 # separated by the same "needs validation" block as the reformatted bib.
-still_flagged_keys = {r.key for r in fixed_results if r.status in ("missing", "mismatch")}
+still_flagged_keys = {r.key for r in fixed_results if r.status in _FLAGGED_STATUSES}
 n_ok_fixed, n_bad_fixed = write_reformatted_bib(FIXED_FILE, still_flagged_keys, FIXED_FILE)
 console.print(
     f"Reformatted fixed bib in-place: "

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from .cache import CheckCache
@@ -46,6 +47,18 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     client = InspireClient(rate_limit_delay=args.delay)
 
+    # Set up ADS client if a token is available.
+    ads_token = args.ads_token or os.environ.get("ADS_TOKEN", "")
+    ads_client = None
+    if ads_token:
+        from .ads import AdsClient
+        ads_client = AdsClient(ads_token, rate_limit_delay=args.delay)
+    elif args.verbose:
+        console.print(
+            "  [dim]No ADS token — skipping ADS direct fallback "
+            "(set ADS_TOKEN or pass --ads-token).[/]"
+        )
+
     # Load ignore list from pyproject.toml / .bibcheckerignore.
     ignore_keys = load_ignore_keys(bib_path)
     if ignore_keys and args.verbose:
@@ -59,6 +72,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     results = check_entries(
         entries,
         client=client,
+        ads_client=ads_client,
         verbose=args.verbose,
         cache=cache,
         ignore_keys=ignore_keys,
@@ -66,7 +80,8 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     print_check_results(results, bib_path.name)
 
-    output = [r.to_dict() for r in results if r.status in ("missing", "mismatch")]
+    _FLAGGED = ("missing", "mismatch", "found_via_ads", "mismatch_via_ads")
+    output = [r.to_dict() for r in results if r.status in _FLAGGED]
     out_path = Path(args.output)
     out_path.write_text(json.dumps(output, indent=2, ensure_ascii=False))
     console.print(f"Wrote [bold]{len(output)}[/] flagged entries to [cyan]{out_path}[/]\n")
@@ -138,7 +153,7 @@ def cmd_suggest(args: argparse.Namespace) -> int:
                     _m.FieldMismatch(
                         field_name=m["field"],
                         local_value=m["local"],
-                        inspire_value=m["inspire"],
+                        remote_value=m["remote"],
                     )
                     for m in r.get("mismatches", [])
                 ],
@@ -291,6 +306,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-cache",
         action="store_true",
         help="Bypass the on-disk result cache and re-fetch everything.",
+    )
+    p_check.add_argument(
+        "--ads-token",
+        default=None,
+        metavar="TOKEN",
+        help="NASA ADS API token for direct ADS fallback (overrides ADS_TOKEN env var).",
     )
     p_check.set_defaults(func=cmd_check)
 

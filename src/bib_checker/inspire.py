@@ -97,6 +97,29 @@ class InspireClient:
                     records[key] = hit
         return records
 
+    def lookup_by_ads_bibcode(self, bibcode: str) -> dict[str, Any] | None:
+        """Return the first InspireHEP record matching an ADS bibcode, or None.
+
+        Parameters
+        ----------
+        bibcode : str
+            ADS bibcode extracted from an ``adsurl`` field, e.g.
+            ``2019ApJS..243...10P``.
+
+        Returns
+        -------
+        record : dict[str, Any] or None
+            Raw API hit dict, or ``None`` if no record was found.
+        """
+        params = {
+            "q": f"external_system_identifiers.value:{bibcode}",
+            "fields": "texkeys,titles,authors,dois,arxiv_eprints,publication_info,imprint",
+            "size": 1,
+        }
+        data = self._get(f"{_BASE}/literature", params=params)
+        hits = data.get("hits", {}).get("hits", [])
+        return hits[0] if hits else None
+
     def search(
         self,
         query: str,

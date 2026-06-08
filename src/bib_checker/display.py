@@ -16,6 +16,9 @@ _STATUS_STYLE: dict[str, tuple[str, str]] = {
     "ok": ("✓", "green"),
     "missing": ("✗", "bold red"),
     "mismatch": ("~", "bold yellow"),
+    "found_via_ads": ("→", "bold blue"),
+    "ok_via_ads": ("✓", "bold cyan"),
+    "mismatch_via_ads": ("~", "bold cyan"),
 }
 
 
@@ -30,8 +33,11 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
         Display name of the source .bib file, shown in the panel title.
     """
     ok = [r for r in results if r.status == "ok"]
+    ok_via_ads = [r for r in results if r.status == "ok_via_ads"]
     missing = [r for r in results if r.status == "missing"]
     mismatch = [r for r in results if r.status == "mismatch"]
+    found_via_ads = [r for r in results if r.status == "found_via_ads"]
+    mismatch_via_ads = [r for r in results if r.status == "mismatch_via_ads"]
     nonstandard = [r for r in results if r.nonstandard_key]
 
     # Summary panel
@@ -40,12 +46,18 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
         f"[bold red]✗ {len(missing)} missing[/]   "
         f"[bold yellow]~ {len(mismatch)} mismatched[/]"
     )
+    if ok_via_ads:
+        summary += f"   [bold cyan]✓ {len(ok_via_ads)} ok via ADS[/]"
+    if found_via_ads:
+        summary += f"   [bold blue]→ {len(found_via_ads)} found via ADS[/]"
+    if mismatch_via_ads:
+        summary += f"   [bold cyan]~ {len(mismatch_via_ads)} mismatched via ADS[/]"
     if nonstandard:
         summary += f"   [bold magenta]⚠ {len(nonstandard)} non-standard key(s)[/]"
     console.print(Panel(summary, title=f"[bold]Results: {bib_name}[/]", box=box.ROUNDED))
 
     # Only render the table when there is something flagged.
-    flagged = missing + mismatch
+    flagged = missing + mismatch + found_via_ads + mismatch_via_ads
     if not flagged:
         console.print("[green]All entries look good.[/]\n")
         return
@@ -61,13 +73,17 @@ def print_check_results(results: list[CheckResult], bib_name: str) -> None:
         if r.nonstandard_key:
             status_str += "\n[bold magenta]⚠ non-std key[/]"
 
-        if r.mismatches:
-            details = "\n".join(
-                f"[bold]{m.field_name}[/]\n  local  : {m.local_value}\n  inspire: {m.inspire_value}"
-                for m in r.mismatches
-            )
+        if r.status == "found_via_ads" and r.inspire_record:
+            inspire_key = (r.inspire_record.get("metadata", {}).get("texkeys") or [""])[0]
+            details = f"[bold blue]InspireHEP key:[/] {inspire_key}\n"
         else:
             details = ""
+
+        if r.mismatches:
+            details += "\n".join(
+                f"[bold]{m.field_name}[/]\n  local : {m.local_value}\n  remote: {m.remote_value}"
+                for m in r.mismatches
+            )
 
         table.add_row(r.key, status_str, details)
 

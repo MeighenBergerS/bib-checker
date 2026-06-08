@@ -14,7 +14,7 @@ from typing import Any
 
 from .models import CheckResult, FieldMismatch
 
-_CACHE_VERSION = 1
+_CACHE_VERSION = 2
 
 
 def _entry_hash(fields: dict[str, str]) -> str:
@@ -55,12 +55,14 @@ def _result_from_dict(raw: dict[str, Any]) -> CheckResult:
             FieldMismatch(
                 field_name=m["field"],
                 local_value=m["local"],
-                inspire_value=m["inspire"],
+                # support both old "inspire" key and new "remote" key
+                remote_value=m.get("remote") or m.get("inspire", ""),
             )
             for m in raw.get("mismatches", [])
         ],
         local_entry=raw.get("local_entry"),
         inspire_record=raw.get("inspire_record"),
+        ads_record=raw.get("ads_record"),
     )
 
 

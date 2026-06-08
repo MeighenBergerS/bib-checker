@@ -44,6 +44,9 @@ suggestions.json
 *.bib
 !bibliography.bib
 
+# Local secrets
+.env
+
 # OS
 .DS_Store
 Thumbs.db

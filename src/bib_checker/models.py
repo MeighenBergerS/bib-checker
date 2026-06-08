@@ -54,7 +54,7 @@ class BibEntry:
 
 @dataclass
 class FieldMismatch:
-    """A single field difference between a local bib entry and InspireHEP.
+    """A single field difference between a local bib entry and a remote record.
 
     Attributes
     ----------
@@ -62,13 +62,13 @@ class FieldMismatch:
         Name of the differing field, e.g. ``doi`` or ``year``.
     local_value : str
         The value found in the local .bib file.
-    inspire_value : str
-        The value returned by InspireHEP.
+    remote_value : str
+        The value returned by the remote source (InspireHEP or ADS).
     """
 
     field_name: str
     local_value: str
-    inspire_value: str
+    remote_value: str
 
 
 @dataclass
@@ -80,7 +80,9 @@ class CheckResult:
     key : str
         Citation key of the checked entry.
     status : str
-        Outcome: ``"ok"``, ``"missing"``, or ``"mismatch"``.
+        Outcome: ``"ok"``, ``"missing"``, ``"mismatch"``, or
+        ``"found_via_ads"`` (missing by texkey but located on InspireHEP
+        via the entry's ``adsurl`` bibcode).
     nonstandard_key : bool
         ``True`` when the citation key does not follow the InspireHEP
         ``Author:YYYYxx`` convention.
@@ -94,11 +96,12 @@ class CheckResult:
     """
 
     key: str
-    status: str  # "ok" | "missing" | "mismatch"
+    status: str  # "ok" | "missing" | "mismatch" | "found_via_ads"
     nonstandard_key: bool = False
     mismatches: list[FieldMismatch] = field(default_factory=list)
     local_entry: dict[str, Any] | None = None
     inspire_record: dict[str, Any] | None = None
+    ads_record: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise the result to a JSON-compatible dict."""
@@ -110,12 +113,13 @@ class CheckResult:
                 {
                     "field": m.field_name,
                     "local": m.local_value,
-                    "inspire": m.inspire_value,
+                    "remote": m.remote_value,
                 }
                 for m in self.mismatches
             ],
             "local_entry": self.local_entry,
             "inspire_record": self.inspire_record,
+            "ads_record": self.ads_record,
         }
 
 

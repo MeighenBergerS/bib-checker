@@ -218,8 +218,8 @@ def _build_check_section(results: list[CheckResult], bib_name: str) -> str:
                         f'<span class="diff-local">{_e(m.local_value) or "—"}</span>'
                         f"</div>"
                         f'<div class="diff-row">'
-                        f'<span class="diff-label">inspire</span>'
-                        f'<span class="diff-inspire">{_e(m.inspire_value) or "—"}</span>'
+                        f'<span class="diff-label">remote</span>'
+                        f'<span class="diff-inspire">{_e(m.remote_value) or "—"}</span>'
                         f"</div>"
                         f"</div>"
                     )
