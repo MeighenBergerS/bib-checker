@@ -28,25 +28,14 @@ Note: this script makes live requests to the InspireHEP API.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 # Allow running the script directly without installing the package.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-import os
-from pathlib import Path
-
 from bib_checker.ads import AdsClient
-
-# Load .env from the repo root if present (simple key=value, no dependencies).
-_env_path = Path(__file__).parent.parent / ".env"
-if _env_path.exists():
-    for _line in _env_path.read_text().splitlines():
-        _line = _line.strip()
-        if _line and not _line.startswith("#") and "=" in _line:
-            _k, _v = _line.split("=", 1)
-            os.environ.setdefault(_k.strip(), _v.strip())
 from bib_checker.cache import CheckCache
 from bib_checker.checker import check_entries
 from bib_checker.config import load_ignore_keys
@@ -56,6 +45,16 @@ from bib_checker.inspire import InspireClient
 from bib_checker.parser import parse_bib_file, write_reformatted_bib
 from bib_checker.report import write_html_report
 from bib_checker.searcher import suggest_replacements
+
+# Load .env from the repo root if present (simple key=value, no dependencies).
+# Must run before env vars are read below.
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 # ---------------------------------------------------------------------------
 # Configuration
