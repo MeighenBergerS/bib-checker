@@ -36,4 +36,4 @@ jobs:
       - name: Install dependencies
         run: pip install --pre -e ".[dev]"
       - name: Run audit
-        run: pip-audit --strict
+        run: pip-audit --strict --skip-editable
