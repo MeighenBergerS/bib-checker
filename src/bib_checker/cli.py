@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from .checker import check_entries
+from .display import console, print_check_results, print_suggestions
 from .inspire import InspireClient
 from .parser import parse_bib_file
 from .searcher import suggest_replacements
@@ -36,25 +36,20 @@ def cmd_check(args: argparse.Namespace) -> int:
     try:
         entries = parse_bib_file(bib_path)
     except FileNotFoundError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        console.print(f"[bold red]Error:[/] {exc}")
         return 1
 
-    print(f"Parsed {len(entries)} entries from {bib_path.name}")
+    console.print(f"Parsed [bold]{len(entries)}[/] entries from [cyan]{bib_path.name}[/]")
 
     client = InspireClient(rate_limit_delay=args.delay)
     results = check_entries(entries, client=client, verbose=args.verbose)
 
-    ok = sum(1 for r in results if r.status == "ok")
-    missing = sum(1 for r in results if r.status == "missing")
-    mismatch = sum(1 for r in results if r.status == "mismatch")
-
-    print(f"Results: {ok} ok  |  {missing} missing  |  {mismatch} mismatched")
+    print_check_results(results, bib_path.name)
 
     output = [r.to_dict() for r in results if r.status in ("missing", "mismatch")]
-
     out_path = Path(args.output)
     out_path.write_text(json.dumps(output, indent=2, ensure_ascii=False))
-    print(f"Wrote {len(output)} flagged entries to {out_path}")
+    console.print(f"Wrote [bold]{len(output)}[/] flagged entries to [cyan]{out_path}[/]\n")
 
     return 0
 
@@ -74,7 +69,7 @@ def cmd_suggest(args: argparse.Namespace) -> int:
     """
     results_path = Path(args.results_file)
     if not results_path.exists():
-        print(f"Error: {results_path} not found", file=sys.stderr)
+        console.print(f"[bold red]Error:[/] {results_path} not found")
         return 1
 
     client = InspireClient(rate_limit_delay=args.delay)
@@ -84,14 +79,16 @@ def cmd_suggest(args: argparse.Namespace) -> int:
             results_path, client=client, verbose=args.verbose
         )
     except (json.JSONDecodeError, KeyError) as exc:
-        print(f"Error reading results file: {exc}", file=sys.stderr)
+        console.print(f"[bold red]Error reading results file:[/] {exc}")
         return 1
+
+    print_suggestions(suggestions)
 
     out_path = Path(args.output)
     out_path.write_text(
         json.dumps([s.to_dict() for s in suggestions], indent=2, ensure_ascii=False)
     )
-    print(f"Wrote {len(suggestions)} suggestions to {out_path}")
+    console.print(f"Wrote [bold]{len(suggestions)}[/] suggestions to [cyan]{out_path}[/]\n")
 
     return 0
 
