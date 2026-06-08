@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.tox/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Type checking / linting caches
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Output files
+results.json
+suggestions.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Distribution / packaging
+MANIFEST
