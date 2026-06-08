@@ -35,6 +35,7 @@ coverage.xml
 # Output files
 results.json
 suggestions.json
+*.html
 
 # Bibliography files (ignore all .bib except the committed sample)
 *.bib

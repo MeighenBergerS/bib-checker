@@ -28,8 +28,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from bib_checker.checker import check_entries
+from bib_checker.display import console, print_check_results, print_suggestions
 from bib_checker.inspire import InspireClient
-from bib_checker.parser import parse_bib_file
+from bib_checker.parser import parse_bib_file, write_reformatted_bib
+from bib_checker.report import write_html_report
 from bib_checker.searcher import suggest_replacements
 
 # ---------------------------------------------------------------------------
@@ -44,57 +46,57 @@ BIB_FILE = (
 # Output paths written next to the script.
 RESULTS_FILE = Path(__file__).parent / "results.json"
 SUGGESTIONS_FILE = Path(__file__).parent / "suggestions.json"
+HTML_REPORT_FILE = Path(__file__).parent / "report.html"
+REFORMATTED_FILE = BIB_FILE.with_name(BIB_FILE.stem + "_reformatted" + BIB_FILE.suffix)
 
 # ---------------------------------------------------------------------------
 # Step 1: parse and check
 # ---------------------------------------------------------------------------
 
-print(f"Parsing {BIB_FILE} …")
+console.print(f"Parsing [cyan]{BIB_FILE}[/] …")
 entries = parse_bib_file(BIB_FILE)
-print(f"  Found {len(entries)} entries.\n")
+console.print(f"  Found [bold]{len(entries)}[/] entries.\n")
 
 client = InspireClient(rate_limit_delay=0.5)
 
-print("Checking entries against InspireHEP …")
+console.print("Checking entries against InspireHEP …")
 results = check_entries(entries, client=client, verbose=True)
 
-ok = [r for r in results if r.status == "ok"]
-missing = [r for r in results if r.status == "missing"]
-mismatch = [r for r in results if r.status == "mismatch"]
-
-print(f"\nResults: {len(ok)} ok  |  {len(missing)} missing  |  {len(mismatch)} mismatched")
+print_check_results(results, BIB_FILE.name)
 
 # Write flagged entries to JSON.
-flagged = [r.to_dict() for r in missing + mismatch]
+flagged = [r.to_dict() for r in results if r.status in ("missing", "mismatch")]
 RESULTS_FILE.write_text(json.dumps(flagged, indent=2, ensure_ascii=False))
-print(f"Wrote {len(flagged)} flagged entries → {RESULTS_FILE}\n")
+console.print(f"Wrote [bold]{len(flagged)}[/] flagged entries → [cyan]{RESULTS_FILE}[/]\n")
+
+# Write reformatted bib with flagged entries moved to the end.
+flagged_keys = {r.key for r in results if r.status in ("missing", "mismatch")}
+n_ok, n_bad = write_reformatted_bib(BIB_FILE, flagged_keys, REFORMATTED_FILE)
+console.print(
+    f"Wrote reformatted bib → [cyan]{REFORMATTED_FILE}[/] "
+    f"([green]{n_ok} ok[/] + [yellow]{n_bad} flagged[/])\n"
+)
 
 # ---------------------------------------------------------------------------
 # Step 2: search for replacements (only when there is something to fix)
 # ---------------------------------------------------------------------------
 
 if not flagged:
-    print("All entries look good — nothing to suggest.")
+    console.print("[green]All entries look good — nothing to suggest.[/]")
+    write_html_report(results, [], BIB_FILE.name, HTML_REPORT_FILE)
+    console.print(f"Wrote HTML report → [cyan]{HTML_REPORT_FILE}[/]")
     sys.exit(0)
 
-print("Searching InspireHEP for replacement candidates …")
+console.print("Searching InspireHEP for replacement candidates …")
 suggestions = suggest_replacements(RESULTS_FILE, client=client, verbose=True)
+
+print_suggestions(suggestions)
 
 SUGGESTIONS_FILE.write_text(
     json.dumps([s.to_dict() for s in suggestions], indent=2, ensure_ascii=False)
 )
-print(f"\nWrote {len(suggestions)} suggestions → {SUGGESTIONS_FILE}")
+console.print(f"Wrote [bold]{len(suggestions)}[/] suggestions → [cyan]{SUGGESTIONS_FILE}[/]")
 
-# ---------------------------------------------------------------------------
-# Pretty-print a short summary of suggestions
-# ---------------------------------------------------------------------------
-
-if suggestions:
-    print("\n--- Suggestions ---")
-    current_key = None
-    for s in suggestions:
-        if s.for_key != current_key:
-            print(f"\n  For '{s.for_key}':")
-            current_key = s.for_key
-        first_author = s.authors[0] if s.authors else "Unknown"
-        print(f"    [{s.texkey}] {s.title[:70]} — {first_author} ({s.year})")
+# Write combined HTML report.
+write_html_report(results, suggestions, BIB_FILE.name, HTML_REPORT_FILE)
+console.print(f"Wrote HTML report → [cyan]{HTML_REPORT_FILE}[/]")

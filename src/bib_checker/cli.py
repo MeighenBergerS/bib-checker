@@ -10,6 +10,7 @@ from .checker import check_entries
 from .display import console, print_check_results, print_suggestions
 from .inspire import InspireClient
 from .parser import parse_bib_file, write_reformatted_bib
+from .report import write_html_report
 from .searcher import suggest_replacements
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,11 @@ def cmd_check(args: argparse.Namespace) -> int:
             f"([green]{n_ok} ok[/] + [yellow]{n_bad} flagged[/])\n"
         )
 
+    if args.html:
+        html_out = args.html_output or bib_path.with_name(bib_path.stem + "_report.html")
+        write_html_report(results, [], bib_path.name, html_out)
+        console.print(f"Wrote HTML report to [cyan]{html_out}[/]\n")
+
     return 0
 
 
@@ -98,6 +104,35 @@ def cmd_suggest(args: argparse.Namespace) -> int:
         json.dumps([s.to_dict() for s in suggestions], indent=2, ensure_ascii=False)
     )
     console.print(f"Wrote [bold]{len(suggestions)}[/] suggestions to [cyan]{out_path}[/]\n")
+
+    if args.html:
+        # Reload check results so the HTML report is fully combined.
+        import bib_checker.models as _m
+
+        raw_results = json.loads(results_path.read_text())
+        check_results = [
+            _m.CheckResult(
+                key=r["key"],
+                status=r["status"],
+                mismatches=[
+                    _m.FieldMismatch(
+                        field_name=m["field"],
+                        local_value=m["local"],
+                        inspire_value=m["inspire"],
+                    )
+                    for m in r.get("mismatches", [])
+                ],
+                local_entry=r.get("local_entry"),
+                inspire_record=r.get("inspire_record"),
+            )
+            for r in raw_results
+        ]
+        bib_name = results_path.stem.replace("_results", "") or results_path.stem
+        html_out = args.html_output or results_path.with_name(
+            results_path.stem.replace("results", "report") + ".html"
+        )
+        write_html_report(check_results, suggestions, bib_name, html_out)
+        console.print(f"Wrote HTML report to [cyan]{html_out}[/]\n")
 
     return 0
 
@@ -156,6 +191,17 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="Output path for the reformatted .bib file (default: <name>_reformatted.bib).",
     )
+    p_check.add_argument(
+        "--html",
+        action="store_true",
+        help="Write a self-contained HTML report alongside the JSON output.",
+    )
+    p_check.add_argument(
+        "--html-output",
+        default=None,
+        metavar="FILE",
+        help="Output path for the HTML report (default: <name>_report.html).",
+    )
     p_check.set_defaults(func=cmd_check)
 
     # -- suggest -------------------------------------------------------------
@@ -170,6 +216,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="suggestions.json",
         metavar="FILE",
         help="Output JSON file (default: suggestions.json).",
+    )
+    p_suggest.add_argument(
+        "--html",
+        action="store_true",
+        help="Write a combined HTML report (check results + suggestions).",
+    )
+    p_suggest.add_argument(
+        "--html-output",
+        default=None,
+        metavar="FILE",
+        help="Output path for the HTML report (default: report.html next to results.json).",
     )
     p_suggest.set_defaults(func=cmd_suggest)
 
