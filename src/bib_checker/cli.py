@@ -9,7 +9,7 @@ from pathlib import Path
 from .checker import check_entries
 from .display import console, print_check_results, print_suggestions
 from .inspire import InspireClient
-from .parser import parse_bib_file
+from .parser import parse_bib_file, write_reformatted_bib
 from .searcher import suggest_replacements
 
 # ---------------------------------------------------------------------------
@@ -49,6 +49,18 @@ def cmd_check(args: argparse.Namespace) -> int:
     out_path = Path(args.output)
     out_path.write_text(json.dumps(output, indent=2, ensure_ascii=False))
     console.print(f"Wrote [bold]{len(output)}[/] flagged entries to [cyan]{out_path}[/]\n")
+
+    if args.reformat:
+        flagged_keys = {r.key for r in results if r.status in ("missing", "mismatch")}
+        reformat_out = args.reformat_output or bib_path.with_name(
+            bib_path.stem + "_reformatted" + bib_path.suffix
+        )
+        reformat_path = Path(reformat_out)
+        n_ok, n_bad = write_reformatted_bib(bib_path, flagged_keys, reformat_path)
+        console.print(
+            f"Wrote reformatted bib to [cyan]{reformat_path}[/] "
+            f"([green]{n_ok} ok[/] + [yellow]{n_bad} flagged[/])\n"
+        )
 
     return 0
 
@@ -132,6 +144,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="results.json",
         metavar="FILE",
         help="Output JSON file (default: results.json).",
+    )
+    p_check.add_argument(
+        "--reformat",
+        action="store_true",
+        help="Write a reformatted .bib file with flagged entries moved to the end.",
+    )
+    p_check.add_argument(
+        "--reformat-output",
+        default=None,
+        metavar="FILE",
+        help="Output path for the reformatted .bib file (default: <name>_reformatted.bib).",
     )
     p_check.set_defaults(func=cmd_check)
 
