@@ -52,6 +52,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     ads_client = None
     if ads_token:
         from .ads import AdsClient
+
         ads_client = AdsClient(ads_token, rate_limit_delay=args.delay)
     elif args.verbose:
         console.print(
