@@ -36,6 +36,10 @@ coverage.xml
 results.json
 suggestions.json
 
+# Bibliography files (ignore all .bib except the committed sample)
+*.bib
+!bibliography.bib
+
 # OS
 .DS_Store
 Thumbs.db
