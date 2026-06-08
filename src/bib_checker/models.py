@@ -132,6 +132,8 @@ class Suggestion:
         Publication year.
     doi : str
         DOI of the candidate record.
+    local_title : str
+        Title from the local .bib file, for side-by-side comparison.
     eprint : str
         ArXiv eprint identifier.
     inspire_id : str
@@ -141,6 +143,7 @@ class Suggestion:
     for_key: str
     texkey: str
     title: str
+    local_title: str
     authors: list[str]
     year: str
     doi: str
@@ -152,6 +155,7 @@ class Suggestion:
         return {
             "for_key": self.for_key,
             "texkey": self.texkey,
+            "local_title": self.local_title,
             "title": self.title,
             "authors": self.authors,
             "year": self.year,

@@ -47,7 +47,11 @@ def _build_queries(entry: dict[str, Any]) -> list[str]:
     return queries
 
 
-def _record_to_suggestion(for_key: str, record: dict[str, Any]) -> Suggestion:
+def _record_to_suggestion(
+    for_key: str,
+    record: dict[str, Any],
+    local_title: str = "",
+) -> Suggestion:
     """Build a Suggestion from a raw InspireHEP API hit dict.
 
     Parameters
@@ -56,6 +60,8 @@ def _record_to_suggestion(for_key: str, record: dict[str, Any]) -> Suggestion:
         Citation key this suggestion is targeting.
     record : dict[str, Any]
         Raw API hit dict.
+    local_title : str, optional
+        Title from the local .bib file, for side-by-side comparison.
 
     Returns
     -------
@@ -66,6 +72,7 @@ def _record_to_suggestion(for_key: str, record: dict[str, Any]) -> Suggestion:
         for_key=for_key,
         texkey=InspireClient.get_texkey(record),
         title=InspireClient.get_title(record),
+        local_title=local_title,
         authors=InspireClient.get_authors(record),
         year=InspireClient.get_year(record),
         doi=InspireClient.get_doi(record),
@@ -124,7 +131,8 @@ def suggest_replacements(
                 found = hits
                 break  # first successful strategy wins
 
+        local_title = local.get("title", "").strip()
         for record in found:
-            suggestions.append(_record_to_suggestion(key, record))
+            suggestions.append(_record_to_suggestion(key, record, local_title=local_title))
 
     return suggestions

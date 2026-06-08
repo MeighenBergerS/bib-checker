@@ -88,6 +88,9 @@ def print_suggestions(suggestions: list[Suggestion]) -> None:
         by_key.setdefault(s.for_key, []).append(s)
 
     for for_key, group in by_key.items():
+        local_title = group[0].local_title or "(no title in bib)"
+        console.print(f"[dim]Local title:[/] [italic]{local_title}[/]")
+
         table = Table(
             box=box.SIMPLE_HEAVY,
             show_lines=True,
@@ -96,7 +99,7 @@ def print_suggestions(suggestions: list[Suggestion]) -> None:
         )
         table.add_column("#", style="dim", width=3, justify="right")
         table.add_column("Texkey", style="cyan", no_wrap=True)
-        table.add_column("Title", overflow="fold")
+        table.add_column("Suggested title", overflow="fold")
         table.add_column("First author", no_wrap=True)
         table.add_column("Year", justify="center", no_wrap=True)
         table.add_column("Eprint / DOI", overflow="fold")
