@@ -50,20 +50,20 @@ def test_report_is_valid_html(tmp_path):
 
 def test_report_contains_missing_key(tmp_path):
     out = tmp_path / "report.html"
-    write_html_report(
-        [CheckResult(key="Missing:9999xx", status="missing")], [], "test.bib", out
-    )
+    write_html_report([CheckResult(key="Missing:9999xx", status="missing")], [], "test.bib", out)
     assert "Missing:9999xx" in out.read_text()
 
 
 def test_report_contains_mismatch_key_and_field(tmp_path):
     out = tmp_path / "report.html"
     write_html_report(
-        [CheckResult(
-            key="Spolyar:2007qv",
-            status="mismatch",
-            mismatches=[FieldMismatch("year", "2009", "2008")],
-        )],
+        [
+            CheckResult(
+                key="Spolyar:2007qv",
+                status="mismatch",
+                mismatches=[FieldMismatch("year", "2009", "2008")],
+            )
+        ],
         [],
         "test.bib",
         out,

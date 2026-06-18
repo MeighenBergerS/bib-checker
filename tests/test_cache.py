@@ -103,7 +103,9 @@ def test_cache_wrong_version_discarded(tmp_path):
     import json
 
     path = tmp_path / "cache.json"
-    path.write_text(json.dumps({"version": 0, "entries": {"Key:2000ab": {"entry_hash": "abc", "result": {}}}}))
+    path.write_text(
+        json.dumps({"version": 0, "entries": {"Key:2000ab": {"entry_hash": "abc", "result": {}}}})
+    )
     cache = CheckCache(path)
     assert cache.get("Key:2000ab", {}) is None
 

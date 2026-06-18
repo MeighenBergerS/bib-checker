@@ -46,6 +46,7 @@ def simple_bib(tmp_path: Path) -> Path:
 # results.json dict fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mismatch_result_dict() -> dict:
     """A results.json entry for a mismatch (wrong year)."""
@@ -66,7 +67,9 @@ def mismatch_result_dict() -> dict:
             "id": "12345",
             "metadata": {
                 "texkeys": ["Spolyar:2007qv"],
-                "titles": [{"title": "Dark matter and the first stars: a new phase of stellar evolution"}],
+                "titles": [
+                    {"title": "Dark matter and the first stars: a new phase of stellar evolution"}
+                ],
                 "dois": [{"value": "10.1103/PhysRevLett.100.051101"}],
                 "arxiv_eprints": [{"value": "0705.0521"}],
                 "publication_info": [{"year": 2008}],
@@ -99,6 +102,7 @@ def missing_result_dict() -> dict:
 # ---------------------------------------------------------------------------
 # Model fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def ok_check_result() -> CheckResult:

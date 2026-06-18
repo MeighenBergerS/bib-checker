@@ -80,9 +80,7 @@ def test_pyproject_without_bib_checker_section_is_ignored(tmp_path, monkeypatch)
 
 def test_both_sources_merged(tmp_path, monkeypatch):
     (tmp_path / ".bibcheckerignore").write_text("FromIgnore:2000ab\n")
-    (tmp_path / "pyproject.toml").write_text(
-        '[tool.bib-checker]\nignore = ["FromToml:2001cd"]\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[tool.bib-checker]\nignore = ["FromToml:2001cd"]\n')
     monkeypatch.chdir(tmp_path)
     keys = load_ignore_keys()
     assert "FromIgnore:2000ab" in keys
