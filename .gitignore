@@ -61,3 +61,6 @@ desktop.ini
 
 # Distribution / packaging
 MANIFEST
+
+# MkDocs build output
+site/

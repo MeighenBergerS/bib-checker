@@ -149,7 +149,7 @@ if not mismatch_results:
     sys.exit(0)
 
 console.print(f"Applying fixes to [bold]{len(mismatch_results)}[/] mismatch entry(s) …\n")
-applied = apply_fixes(
+applied, still_flagged = apply_fixes(
     BIB_FILE,
     flagged,  # full results list (apply_fixes filters to mismatch internally)
     output_path=FIXED_FILE,
@@ -166,6 +166,11 @@ for change in applied:
         f"    [green]+ {change['new']}[/]\n"
     )
 console.print(f"Wrote fixed bib ([bold]{len(applied)}[/] change(s)) → [cyan]{FIXED_FILE}[/]\n")
+if still_flagged:
+    console.print(
+        f"[yellow]{len(still_flagged)}[/] entry(s) moved to end of fixed bib "
+        f"(still need manual attention): {', '.join(sorted(still_flagged))}\n"
+    )
 
 # ---------------------------------------------------------------------------
 # Step 4: re-check the fixed bib to verify corrections

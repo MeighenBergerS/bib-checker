@@ -2,7 +2,7 @@
 
 import responses as rsps_lib
 
-from bib_checker.checker import check_entries
+from bib_checker.checker import _normalise, check_entries
 from bib_checker.inspire import InspireClient
 from bib_checker.models import BibEntry
 
@@ -178,3 +178,83 @@ def test_lookup_by_texkeys_batches_requests():
 
     assert set(results.keys()) == set(all_keys)
     assert len(rsps_lib.calls) == 2  # two batches fired
+
+
+# ---------------------------------------------------------------------------
+# _normalise — field normalisation
+# ---------------------------------------------------------------------------
+
+
+def test_normalise_latex_greek_to_name():
+    # Braces are stripped after command substitution, so {13} → 13.
+    assert _normalise(r"\theta_{13}") == "theta_13"
+
+
+def test_normalise_unicode_greek_to_name():
+    assert _normalise("θ") == "theta"
+
+
+def test_normalise_ensuremath_stripped():
+    # \ensuremath{\gamma} — inner content has no nested braces, so regex matches.
+    assert _normalise(r"{\ensuremath{\gamma}}") == "gamma"
+
+
+def test_normalise_unicode_and_latex_equivalent():
+    # \theta and θ both normalise to "theta".
+    assert _normalise(r"\theta") == _normalise("θ")
+
+
+def test_normalise_accent_stripped():
+    # é → e after NFD decomposition + Mn-category removal
+    assert _normalise("Müller") == "muller"
+
+
+def test_normalise_braces_removed():
+    assert _normalise("{Some Title}") == "some title"
+
+
+def test_normalise_lowercase_and_whitespace():
+    assert _normalise("  Hello   World  ") == "hello world"
+
+
+# ---------------------------------------------------------------------------
+# check_entries — ignore_keys
+# ---------------------------------------------------------------------------
+
+
+@rsps_lib.activate
+def test_check_entries_skips_ignored_keys():
+    entry = _make_entry("Ignored:2000ab", doi="10.1/x", year="2000")
+    # No HTTP stub — if a request is made the test will raise.
+    client = InspireClient(rate_limit_delay=0)
+    results = check_entries([entry], client=client, ignore_keys={"Ignored:2000ab"})
+    assert results == []
+
+
+# ---------------------------------------------------------------------------
+# check_entries — LaTeX/Unicode title equivalence
+# ---------------------------------------------------------------------------
+
+
+@rsps_lib.activate
+def test_latex_and_unicode_title_do_not_mismatch():
+    entry = _make_entry(
+        "Test:2000ab",
+        doi="10.1/x",
+        eprint="0001.0001",
+        year="2000",
+        title=r"Measurement of \theta_{13}",
+    )
+    hit = _inspire_hit(
+        "Test:2000ab",
+        doi="10.1/x",
+        eprint="0001.0001",
+        year=2000,
+        title="Measurement of θ_{13}",
+    )
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
+
+    client = InspireClient(rate_limit_delay=0)
+    results = check_entries([entry], client=client)
+
+    assert results[0].status == "ok"

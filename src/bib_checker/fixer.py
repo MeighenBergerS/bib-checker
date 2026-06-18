@@ -13,6 +13,7 @@ import bibtexparser
 from bibtexparser.model import Field
 
 from .inspire import InspireClient
+from .parser import write_reformatted_bib
 
 # Fields the fixer is allowed to update (in order of preference).
 # Users can restrict this list via the --fields CLI option.
@@ -66,12 +67,16 @@ def apply_fixes(
     output_path: str | Path | None = None,
     fields: list[str] | None = None,
     dry_run: bool = False,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     """Rewrite mismatch entries in *bib_path* with InspireHEP canonical values.
 
     Only entries with ``status == "mismatch"`` that have an ``inspire_record``
     are modified.  Entries with ``status == "missing"`` are left untouched
     (we don't know which record to fix them to).
+
+    The output file is written with clean entries first and still-flagged
+    entries (missing + mismatches with no fixable InspireHEP record) moved
+    to the end, separated by a comment block.
 
     Parameters
     ----------
@@ -80,7 +85,8 @@ def apply_fixes(
     results : list[dict[str, Any]]
         Parsed contents of ``results.json`` produced by Step 1.
     output_path : str or Path, optional
-        Where to write the fixed bib.  Defaults to *bib_path* (in-place).
+        Where to write the fixed bib.  Defaults to a new file named
+        ``<stem>_fixed.bib`` next to *bib_path*.
         When *dry_run* is ``True`` nothing is written regardless.
     fields : list[str], optional
         Restrict which fields are updated.  Defaults to
@@ -91,9 +97,13 @@ def apply_fixes(
     Returns
     -------
     applied : list[dict[str, Any]]
-        One entry per modified citation key::
+        One entry per modified field::
 
             {"key": str, "field": str, "old": str, "new": str}
+
+    still_flagged : set[str]
+        Citation keys that still need manual attention after the fix
+        (missing entries + mismatches with no fixable InspireHEP record).
 
     Raises
     ------
@@ -108,7 +118,7 @@ def apply_fixes(
         fields = DEFAULT_FIX_FIELDS
 
     if output_path is None:
-        output_path = bib_path
+        output_path = bib_path.with_name(bib_path.stem + "_fixed" + bib_path.suffix)
     output_path = Path(output_path)
 
     # Build a map of key → canonical updates for mismatch entries only.
@@ -119,6 +129,15 @@ def apply_fixes(
         updates = _canonical_values(r, fields)
         if updates:
             fix_map[r["key"]] = updates
+
+    # Keys that remain problematic after the fix pass:
+    # - all missing entries (no record to fix to)
+    # - mismatch entries where we found no fixable canonical values
+    still_flagged: set[str] = set()
+    for r in results:
+        key = r["key"]
+        if r.get("status") == "missing" or key not in fix_map:
+            still_flagged.add(key)
 
     library = bibtexparser.parse_file(str(bib_path))
 
@@ -141,6 +160,19 @@ def apply_fixes(
                 entry.set_field(Field(field_name, new_value))
 
     if not dry_run:
-        output_path.write_text(bibtexparser.write_string(library), encoding="utf-8")
+        # Write a patched intermediate file, then reformat to move
+        # still-flagged entries to the end with a separator comment.
+        import tempfile
 
-    return applied
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".bib", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp.write(bibtexparser.write_string(library))
+            tmp_path = Path(tmp.name)
+
+        try:
+            write_reformatted_bib(tmp_path, still_flagged, output_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    return applied, still_flagged

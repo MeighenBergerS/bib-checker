@@ -211,7 +211,7 @@ def cmd_fix(args: argparse.Namespace) -> int:
     output_path = Path(args.output) if args.output else None
 
     try:
-        applied = apply_fixes(
+        applied, still_flagged = apply_fixes(
             bib_path,
             results,
             output_path=output_path,
@@ -222,11 +222,13 @@ def cmd_fix(args: argparse.Namespace) -> int:
         console.print(f"[bold red]Error:[/] {exc}")
         return 1
 
-    if not applied:
+    # Resolve the actual destination for display.
+    dest = output_path or bib_path.with_name(bib_path.stem + "_fixed" + bib_path.suffix)
+
+    if not applied and not still_flagged:
         console.print("[green]Nothing to fix — no mismatch entries with known records.[/]")
         return 0
 
-    dest = output_path or bib_path
     verb = "Would update" if args.dry_run else "Updated"
     console.print(f"{verb} [bold]{len(applied)}[/] field(s) in [cyan]{dest}[/]:\n")
 
@@ -235,6 +237,14 @@ def cmd_fix(args: argparse.Namespace) -> int:
             f"  [cyan]{change['key']}[/]  [bold]{change['field']}[/]\n"
             f"    [red]- {change['old'] or '(empty)'}[/]\n"
             f"    [green]+ {change['new']}[/]\n"
+        )
+
+    if still_flagged:
+        keys_str = ", ".join(sorted(still_flagged))
+        label = "Would move" if args.dry_run else "Moved"
+        console.print(
+            f"{label} [bold]{len(still_flagged)}[/] still-flagged entry/entries "
+            f"to the end of [cyan]{dest}[/]:\n  {keys_str}\n"
         )
 
     if args.dry_run:
@@ -358,7 +368,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-o",
         default=None,
         metavar="FILE",
-        help="Output .bib path (default: in-place).",
+        help="Output .bib path (default: <name>_fixed.bib next to the input).",
     )
     p_fix.add_argument(
         "--fields",

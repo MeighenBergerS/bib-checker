@@ -1,0 +1,49 @@
+site_name: bib-checker
+site_description: Validate .bib citations against InspireHEP and suggest corrections.
+site_author: MeighenBergerS
+repo_url: https://github.com/MeighenBergerS/bib-checker
+repo_name: MeighenBergerS/bib-checker
+
+theme:
+  name: readthedocs
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Guides:
+      - Check: guides/check.md
+      - Suggest: guides/suggest.md
+      - Fix: guides/fix.md
+      - HTML Report: guides/html-report.md
+      - Configuration: guides/configuration.md
+  - API Reference:
+      - checker: api/checker.md
+      - fixer: api/fixer.md
+      - searcher: api/searcher.md
+      - parser: api/parser.md
+      - models: api/models.md
+      - inspire: api/inspire.md
+      - cache: api/cache.md
+      - config: api/config.md
+  - Contributing: contributing.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: numpy
+            separate_signature: true
+            show_source: true
+            show_root_heading: true
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables

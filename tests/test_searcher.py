@@ -142,3 +142,105 @@ def test_suggest_no_hits_returns_empty(tmp_path):
     suggestions = suggest_replacements(results_file, client=client)
 
     assert suggestions == []
+
+
+# ---------------------------------------------------------------------------
+# Query priority — doi fallback when no eprint
+# ---------------------------------------------------------------------------
+
+
+@rsps_lib.activate
+def test_suggest_falls_back_to_doi_when_no_eprint(tmp_path):
+    result = {
+        "key": "Test:2000ab",
+        "status": "missing",
+        "local_entry": {
+            "eprint": "",
+            "doi": "10.1/test",
+            "author": "Test, Author",
+            "year": "2000",
+        },
+        "mismatches": [],
+    }
+    results_file = _make_results_file(tmp_path, [result])
+
+    hit = _make_hit("Test:2000ab", "Found via DOI", "0001.0001")
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
+
+    client = InspireClient(rate_limit_delay=0)
+    suggestions = suggest_replacements(results_file, client=client)
+
+    assert len(suggestions) == 1
+    # The query used the doi: path — verify a suggestion was returned.
+    assert suggestions[0].for_key == "Test:2000ab"
+
+
+# ---------------------------------------------------------------------------
+# Query priority — author+year fallback
+# ---------------------------------------------------------------------------
+
+
+@rsps_lib.activate
+def test_suggest_falls_back_to_author_year(tmp_path):
+    result = {
+        "key": "Test:2000ab",
+        "status": "missing",
+        "local_entry": {
+            "eprint": "",
+            "doi": "",
+            "author": "Smith, John",
+            "year": "2000",
+        },
+        "mismatches": [],
+    }
+    results_file = _make_results_file(tmp_path, [result])
+
+    hit = _make_hit("Smith:2000ab", "Found via author+year", "0001.0001")
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": [hit]}}, status=200)
+
+    client = InspireClient(rate_limit_delay=0)
+    suggestions = suggest_replacements(results_file, client=client)
+
+    assert len(suggestions) == 1
+    assert suggestions[0].for_key == "Test:2000ab"
+
+
+# ---------------------------------------------------------------------------
+# Multiple suggestions capped at 5
+# ---------------------------------------------------------------------------
+
+
+@rsps_lib.activate
+def test_suggest_returns_all_hits_from_api(tmp_path):
+    """API is called with size=5; whatever the API returns is passed through."""
+    result = {
+        "key": "Test:2000ab",
+        "status": "missing",
+        "local_entry": {"eprint": "0001.0001", "doi": "", "author": "Test, A", "year": "2000"},
+        "mismatches": [],
+    }
+    results_file = _make_results_file(tmp_path, [result])
+
+    hits = [_make_hit(f"Key:200{i}ab", f"Paper {i}", f"000{i}.0001") for i in range(5)]
+    rsps_lib.add(rsps_lib.GET, _BASE, json={"hits": {"hits": hits}}, status=200)
+
+    client = InspireClient(rate_limit_delay=0)
+    suggestions = suggest_replacements(results_file, client=client)
+
+    assert len(suggestions) == 5
+
+
+# ---------------------------------------------------------------------------
+# _build_queries — edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_build_queries_doi_only():
+    queries = _build_queries({"doi": "10.1/test"})
+    assert any("doi:" in q for q in queries)
+
+
+def test_build_queries_author_year_fallback():
+    queries = _build_queries({"author": "Smith, John", "year": "2000"})
+    assert any("Smith" in q for q in queries)
+    assert any("2000" in q for q in queries)
