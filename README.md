@@ -1,109 +1,45 @@
 # bib-checker
 
-Validate citations in a LaTeX `.bib` file against InspireHEP and suggest replacements for entries that are missing or mismatched.
+Validate `.bib` citations against [InspireHEP](https://inspirehep.net) and fix what's wrong.
 
-## Requirements
+[![CI](https://github.com/MeighenBergerS/bib-checker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MeighenBergerS/bib-checker/actions/workflows/ci.yml)
+[![Docs](https://github.com/MeighenBergerS/bib-checker/actions/workflows/docs.yml/badge.svg?branch=main)](https://meighenbergers.github.io/bib-checker/)
+[![Python Versions](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-- Python ≥ 3.11
-- [`bibtexparser`](https://bibtexparser.readthedocs.io/) v2
-- [`requests`](https://requests.readthedocs.io/)
+|               |                                                 |
+|---------------|-------------------------------------------------|
+| Repository    | <https://github.com/MeighenBergerS/bib-checker> |
+| Documentation | <https://meighenbergers.github.io/bib-checker/> |
 
-## Installation
+## Summary
 
-```bash
-pip install -e ".[dev]"   # include dev/test dependencies
-# or
-pip install -e .           # runtime only
-```
+bib-checker is a Python CLI that checks every entry in a `.bib` file against the InspireHEP
+database, flags missing or mismatched records, suggests canonical replacements, and writes a
+corrected `.bib` file — all in three commands.
 
-## Usage
+**Everything is on the [documentation site](https://meighenbergers.github.io/bib-checker/).**
+Start there rather than reading the repository directly.
 
-### Step 1 — check your bib file
-
-```bash
-bib-checker check bibliography.bib
-# writes flagged entries (missing / mismatched) to results.json
-```
-
-Options:
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--output FILE` | `results.json` | Where to write flagged entries |
-| `--delay SECONDS` | `0.5` | Pause between API requests |
-| `--verbose` | off | Print progress for each entry |
-
-### Step 2 — find replacement candidates
+## Quick start
 
 ```bash
-bib-checker suggest results.json
-# writes ranked candidate records to suggestions.json
+pip install --pre -e .
+
+bib-checker check paper.bib             # Step 1 — find problems
+bib-checker suggest results.json        # Step 2 — find replacements
+bib-checker fix paper.bib results.json  # Step 3 — apply fixes
 ```
 
-Options:
+## Getting Help
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--output FILE` | `suggestions.json` | Where to write suggestions |
-| `--delay SECONDS` | `0.5` | Pause between API requests |
-| `--verbose` | off | Print progress for each entry |
+Have a question or need help? Open a
+[discussion](https://github.com/MeighenBergerS/bib-checker/discussions).
 
-## Output format
+Found a bug or want to suggest a change?
+[Open an issue](https://github.com/MeighenBergerS/bib-checker/issues/new).
 
-**`results.json`** — array of flagged entries:
+## License
 
-```json
-[
-  {
-    "key": "FakeKey:9999xx",
-    "status": "missing",
-    "mismatches": [],
-    "local_entry": { "key": "...", "type": "article", "doi": "..." },
-    "inspire_record": null
-  }
-]
-```
-
-`status` is one of `"missing"` (not found on InspireHEP) or `"mismatch"` (found but fields differ).
-
-**`suggestions.json`** — array of candidates:
-
-```json
-[
-  {
-    "for_key": "FakeKey:9999xx",
-    "texkey": "Spolyar:2007qv",
-    "title": "Dark matter and the first stars …",
-    "authors": ["Spolyar, Douglas", "Freese, Katherine", "Gondolo, Paolo"],
-    "year": "2008",
-    "doi": "10.1103/PhysRevLett.100.051101",
-    "eprint": "0705.0521",
-    "inspire_id": "123456"
-  }
-]
-```
-
-## Running tests
-
-```bash
-pytest
-# skip integration (live network) tests
-pytest -m "not integration"
-```
-
-## Project layout
-
-```
-src/bib_checker/
-├── cli.py       # argparse entry points
-├── parser.py    # .bib file parsing
-├── models.py    # dataclasses
-├── inspire.py   # InspireHEP API client
-├── checker.py   # Step 1 logic
-└── searcher.py  # Step 2 logic
-tests/
-├── fixtures/sample.bib
-├── test_parser.py
-├── test_checker.py
-└── test_searcher.py
-```
+This repository is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
+See the [LICENSE](LICENSE) file.
