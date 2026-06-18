@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from bib_checker.models import CheckResult, FieldMismatch, Suggestion
 from bib_checker.report import write_html_report
 

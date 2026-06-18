@@ -8,7 +8,6 @@ import pytest
 
 from bib_checker.models import BibEntry, CheckResult, FieldMismatch
 
-
 # ---------------------------------------------------------------------------
 # Bib file helpers
 # ---------------------------------------------------------------------------

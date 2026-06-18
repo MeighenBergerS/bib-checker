@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from bib_checker.config import load_ignore_keys
 
 
